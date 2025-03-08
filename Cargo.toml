@@ -1,0 +1,9 @@
+[package]
+name = "uptime-ferris"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.1"
+reqwest = "0.12.12"
+tokio = { version = "1.44.0", features = ["full"] }
