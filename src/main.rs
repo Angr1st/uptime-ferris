@@ -1,5 +1,6 @@
 use axum::{Router, middleware::map_request_with_state, response::Html, routing::get};
 use tokio::time::{Duration, sleep};
+
 #[tokio::main]
 async fn main() {
     // build our application with a route
