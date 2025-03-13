@@ -1,6 +1,6 @@
 use axum::{Router, response::Html, routing::get};
 use clap::Parser;
-use sqlx::{PgPool, SqlitePool};
+use sqlx::{PgPool, SqlitePool, migrate::Migrator};
 use tokio::time::{Duration, sleep};
 
 /// Configure either Postgres or Sqlite connection string
@@ -30,11 +30,31 @@ impl AppState {
             _ => panic!("You need to configure either Postgres or Sqlite!"),
         }
     }
-}
 
-const SQLITE_CONNECTION_STRING: &'static str = "sqlite:uptime_ferris.db";
+    async fn migrate_db(&self) {
+        match self {
+            Self::Postgres(p) => Self::migrate_postgres(p).await,
+            Self::Sqlite(s) => Self::migrate_sqlite(s).await,
+        }
+    }
 
-impl AppState {
+    async fn migrate_postgres(pool: &PgPool) {
+        let migrator = Migrator::new(std::path::Path::new("./migrations_pg"))
+            .await
+            .expect("Migration folder couldn't be found");
+        migrator
+            .run(pool)
+            .await
+            .expect("Postgres migrations failed");
+    }
+
+    async fn migrate_sqlite(pool: &SqlitePool) {
+        let migrator = Migrator::new(std::path::Path::new("./migrations_sq"))
+            .await
+            .expect("Migrations folder couldn't be found");
+        migrator.run(pool).await.expect("Sqlite migration failed");
+    }
+
     async fn from(item: Args) -> Self {
         if let Some(pg_string) = item.pg {
             if pg_string.is_empty() {
@@ -54,10 +74,16 @@ impl AppState {
     }
 }
 
+const SQLITE_CONNECTION_STRING: &'static str = "sqlite://uptime_ferris.db?mode=rwc";
+
+impl AppState {}
+
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
     let app_state = AppState::from(args).await;
+    // carry out migrations
+    let _ = &app_state.migrate_db().await;
     // build our application with a route
     let app = Router::new().route("/", get(handler).with_state(app_state));
 
