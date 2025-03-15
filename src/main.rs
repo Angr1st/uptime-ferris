@@ -1,7 +1,9 @@
 use axum::{Router, response::Html, routing::get};
 use clap::Parser;
+use serde::Deserialize;
 use sqlx::{PgPool, SqlitePool, migrate::Migrator};
 use tokio::time::{Duration, sleep};
+use validator::Validate;
 
 /// Configure either Postgres or Sqlite connection string
 #[derive(Parser, Debug)]
@@ -14,6 +16,13 @@ struct Args {
     /// Sqlite Db
     #[arg(short, long, env, default_value_t = true)]
     sqlite: bool,
+}
+
+#[derive(Deserialize, sqlx::FromRow, Validate)]
+struct Website {
+    #[validate(url)]
+    url: String,
+    alias: String,
 }
 
 #[derive(Clone)]
@@ -72,11 +81,11 @@ impl AppState {
             )
         }
     }
+
+    async fn fetch()
 }
 
 const SQLITE_CONNECTION_STRING: &'static str = "sqlite://uptime_ferris.db?mode=rwc";
-
-impl AppState {}
 
 #[tokio::main]
 async fn main() {
@@ -106,4 +115,15 @@ async fn calling_myself() {
     let client = reqwest::Client::new();
     let _respone = client.get("http://127.0.0.1:3000/").send().await.unwrap();
     println!("called myself");
+}
+
+async fn check_website(appState: AppState) {
+    let client = reqwest::Client::new();
+
+    let query = sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites");
+    let mut res = match appState {
+        AppState::Postgres(p) => 
+        AppState::Sqlite(s) =>
+    }
+     
 }
