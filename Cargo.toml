@@ -10,7 +10,7 @@ axum = "0.8.1"
 chrono = { version = "0.4.40", features = ["clock", "serde"] }
 clap = { version = "4.5.31", features = ["derive", "env"] }
 futures-util = "0.3.31"
-reqwest = "0.12.12"
+reqwest = "0.12.14"
 serde = { version = "1.0.218", features = ["derive"] }
 sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono"] }
 tokio = { version = "1.44.0", features = ["full"] }
