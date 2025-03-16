@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS Logs (
     status smallint,
     created_at timestamp with time zone not null default date_trunc('minute', current_timestamp),
     UNIQUE(website_id, created_at)
-)
+);
