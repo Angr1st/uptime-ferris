@@ -3,8 +3,8 @@ use askama_axum::IntoResponse as AskamaIntoResponse;
 use axum::{
     Form, Router,
     extract::{Path, State},
-    response::{Html, IntoResponse as AxumIntoResponse, Redirect, Response},
-    routing::get,
+    response::{IntoResponse as AxumIntoResponse, Redirect, Response},
+    routing::{get, post},
 };
 use chrono::{DateTime, Timelike, Utc};
 use clap::Parser;
@@ -163,7 +163,15 @@ async fn main() {
     });
 
     // build our application with a route
-    let app = Router::new().route("/", get(handler).with_state(app_state));
+    let app = Router::new()
+        .route("/", get(get_websites))
+        .route("/websites", post(create_website))
+        .route(
+            "/websites/:alias",
+            get(get_website_by_alias).delete(delete_website),
+        )
+        .route("/styles.css", get(styles))
+        .with_state(app_state);
 
     // run it
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
@@ -173,8 +181,12 @@ async fn main() {
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn handler() -> Html<&'static str> {
-    Html("<h1>Hello, World!</h1>")
+async fn styles() -> impl AxumIntoResponse {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/css")
+        .body(include_str!("../templates/styles.css").to_owned())
+        .unwrap()
 }
 
 async fn create_website(
@@ -210,16 +222,17 @@ async fn create_website(
     Ok(Redirect::to("/"))
 }
 
+#[axum::debug_handler]
 async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoResponse, ApiError> {
     let websites = match state {
-        AppState::Postgres(p) => {
+        AppState::Postgres(ref p) => {
             sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites")
-                .fetch_all(&p)
+                .fetch_all(p)
                 .await?
         }
-        AppState::Sqlite(s) => {
+        AppState::Sqlite(ref s) => {
             sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites")
-                .fetch_all(&s)
+                .fetch_all(s)
                 .await?
         }
     };
@@ -236,6 +249,11 @@ async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoRe
     }
 
     Ok(WebsiteLogs { logs })
+}
+
+enum SplitBy {
+    Hour,
+    Day,
 }
 
 async fn get_daily_stats(alias: &str, app_state: &AppState) -> Result<Vec<WebsiteStats>, ApiError> {
@@ -259,13 +277,13 @@ async fn get_daily_stats(alias: &str, app_state: &AppState) -> Result<Vec<Websit
         AppState::Sqlite(s) => {
             sqlx::query_as::<_,WebsiteStats>(
                 r#"
-                SELECT date_trunc('hour', created_at) as time,
-                CAST(COUNT(case when status = 200 then 1 end) * 100 / COUNT(*) as int2) as uptime_pct
+                SELECT strftime('%Y-%m-%d %H:00:00', created_at) as time,
+                CAST(COUNT(CASE WHEN status = 200 THEN 1 END) * 100 / COUNT(*) AS INTEGER) as uptime_pct
                 FROM Logs
-                LEFT JOIN Websites on Websites.id = Logs.website_id
+                LEFT JOIN Websites ON Websites.id = Logs.website_id
                 WHERE Websites.alias = $1
                 GROUP BY time
-                ORDER BY time asc
+                ORDER BY time ASC
                 LIMIT 24
                 "#
             )
@@ -282,9 +300,52 @@ async fn get_daily_stats(alias: &str, app_state: &AppState) -> Result<Vec<Websit
     Ok(data)
 }
 
-enum SplitBy {
-    Hour,
-    Day,
+async fn get_monthly_stats(
+    alias: &str,
+    app_state: &AppState,
+) -> Result<Vec<WebsiteStats>, ApiError> {
+    let data = match app_state {
+        AppState::Postgres(p) => {
+            sqlx::query_as::<_, WebsiteStats>(
+                r#"
+                Select date_trunc('day', created_at) as time,
+                CAST(COUNT(case when status = 200 then 1) * 100 / COUNT(*) AS int2) AS uptime_pct
+                FROM Logs
+                LEFT JOIN Websites ON Websites.id = Logs.website_id
+                WHERE Websites.alias = $1
+                GROUP BY time
+                ORDER BY time asc
+                LIMIT 30
+            "#,
+            )
+            .bind(alias)
+            .fetch_all(p)
+            .await?
+        }
+        AppState::Sqlite(s) => {
+            sqlx::query_as::<_, WebsiteStats>(
+                r#"
+                SELECT strftime('%Y-%m-%d 00:00:00', created_at) as time,
+                CAST(COUNT(CASE WHEN status = 200 THEN 1 END) * 100 / COUNT(*) AS INTEGER) as uptime_pct
+                FROM Logs
+                LEFT JOIN Websites ON Websites.id = Logs.website_id
+                WHERE Websites.alias = $1
+                GROUP BY time
+                ORDER BY time ASC
+                LIMIT 30
+            "#,
+            )
+            .bind(alias)
+            .fetch_all(s)
+            .await?
+        }
+    };
+
+    let number_of_splits = 30;
+    let number_of_seconds = 86400;
+
+    let data = fill_data_gaps(data, number_of_splits, SplitBy::Day, number_of_seconds);
+    Ok(data)
 }
 
 fn fill_data_gaps(
@@ -327,21 +388,22 @@ fn fill_data_gaps(
     data
 }
 
+#[axum::debug_handler]
 async fn get_website_by_alias(
     State(state): State<AppState>,
     Path(alias): Path<String>,
 ) -> Result<impl AskamaIntoResponse, ApiError> {
     let website = match state {
-        AppState::Postgres(pool) => {
+        AppState::Postgres(ref p) => {
             sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites WHERE alias = $1 LIMIT 1")
                 .bind(&alias)
-                .fetch_one(&p)
+                .fetch_one(p)
                 .await?
         }
-        AppState::Sqlite(pool) => {
+        AppState::Sqlite(ref s) => {
             sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites WHERE alias = $1 LIMIT 1")
                 .bind(&alias)
-                .fetch_one(&s)
+                .fetch_one(s)
                 .await?
         }
     };
@@ -350,26 +412,26 @@ async fn get_website_by_alias(
     let monthly_data = get_monthly_stats(&website.alias, &state).await?;
 
     let incidents = match state {
-        AppState::Postgres(pool) => {
+        AppState::Postgres(p) => {
             sqlx::query_as::<_, Incident>(
                 "
-            SELECT Logs.created_at as time
+            SELECT Logs.created_at as time,
             Logs.status from Logs
             LEFT JOIN Websites on Websites.id = Logs.website_id
-            where Website.Alias = $1 and Logs.status <> 200
+            where Websites.Alias = $1 and Logs.status <> 200
             ",
             )
             .bind(&alias)
             .fetch_all(&p)
             .await?
         }
-        AppState::Sqlite(pool) => {
+        AppState::Sqlite(s) => {
             sqlx::query_as::<_, Incident>(
                 "
-            SELECT Logs.created_at as time
+            SELECT Logs.created_at as time,
             Logs.status from Logs
             LEFT JOIN Websites on Websites.id = Logs.website_id
-            where Website.Alias = $1 and Logs.status <> 200
+            where Websites.Alias = $1 and Logs.status <> 200
             ",
             )
             .bind(&alias)
@@ -405,10 +467,14 @@ async fn delete_website(
 
 async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
-    if let Err(e) = sqlx::query("DELETE FROM logs WHERE website_alias = $1")
-        .bind(alias)
-        .execute(&mut *tx)
-        .await
+    if let Err(e) = sqlx::query(
+        "DELETE FROM Logs
+        LEFT JOIN Websites ON Websites.id = Logs.website_id
+        WHERE Websites.alias = $1",
+    )
+    .bind(alias)
+    .execute(&mut *tx)
+    .await
     {
         tx.rollback().await?;
         return Err(ApiError::SQL(e));
@@ -430,10 +496,14 @@ async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError
 
 async fn delete_website_sqlite(alias: &str, db: SqlitePool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
-    if let Err(e) = sqlx::query("DELETE FROM logs WHERE website_alias = $1")
-        .bind(alias)
-        .execute(&mut *tx)
-        .await
+    if let Err(e) = sqlx::query(
+        "DELETE FROM Logs
+        LEFT JOIN Websites ON Websites.id = Logs.website_id
+        WHERE Websites.alias = $1",
+    )
+    .bind(alias)
+    .execute(&mut *tx)
+    .await
     {
         tx.rollback().await?;
         return Err(ApiError::SQL(e));
@@ -474,9 +544,9 @@ async fn check_websites_postgres(db: PgPool) {
             let response = client.get(website.url).send().await.unwrap();
 
             sqlx::query(
-                "INSERT INTO Logs (website_alias, status)
+                "INSERT INTO Logs (website_id, status)
                 VALUES
-                ((SELECT id FROM websites WHERE alias = $1), $2)",
+                ((SELECT id FROM Websites WHERE alias = $1), $2)",
             )
             .bind(website.alias)
             .bind(response.status().as_u16() as i16)
@@ -502,9 +572,9 @@ async fn check_websites_sqlite(db: SqlitePool) {
             let response = client.get(website.url).send().await.unwrap();
 
             sqlx::query(
-                "INSERT INTO Logs (website_alias, status)
+                "INSERT INTO Logs (website_id, status)
                 VALUES
-                ((SELECT id FROM websites WHERE alias = $1), $2)",
+                ((SELECT id FROM Websites WHERE alias = $1), $2)",
             )
             .bind(website.alias)
             .bind(response.status().as_u16() as i16)
