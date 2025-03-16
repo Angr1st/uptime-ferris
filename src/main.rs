@@ -497,9 +497,11 @@ async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError
 async fn delete_website_sqlite(alias: &str, db: SqlitePool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
     if let Err(e) = sqlx::query(
-        "DELETE FROM Logs
+        "DELETE FROM Logs WHERE id IN 
+        (SELECT Logs.id
+        FROM Logs
         LEFT JOIN Websites ON Websites.id = Logs.website_id
-        WHERE Websites.alias = $1",
+        WHERE Websites.alias = $1)",
     )
     .bind(alias)
     .execute(&mut *tx)
