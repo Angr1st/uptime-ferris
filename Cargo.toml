@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 askama = { version = "0.12.1", features = ["with-axum"] }
 askama_axum = "0.4.0"
-axum = "0.8.1"
+axum = { version = "0.7.9", features = ["macros"] }
 chrono = { version = "0.4.40", features = ["clock", "serde"] }
 clap = { version = "4.5.31", features = ["derive", "env"] }
 futures-util = "0.3.31"
