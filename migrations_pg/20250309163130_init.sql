@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS Websites (
     id serial primary key,
     url varchar not null,
-    alies varchar(75) not null unique
+    alias varchar(75) not null unique
 );
 
 CREATE TABLE IF NOT EXISTS Logs (
