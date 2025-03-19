@@ -9,10 +9,14 @@ use axum::{
 use chrono::{DateTime, Timelike, Utc};
 use clap::Parser;
 use futures_util::StreamExt;
+use log::info;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, SqlitePool, migrate::Migrator};
 use tokio::time::{self, Duration};
+use tower_http::trace::TraceLayer;
+use tracing::instrument;
+use tracing_subscriber::filter::EnvFilter;
 use validator::Validate;
 
 /// Configure either Postgres or Sqlite connection string
@@ -69,7 +73,7 @@ struct Incident {
     status: i16,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum AppState {
     Postgres(PgPool),
     Sqlite(SqlitePool),
@@ -152,12 +156,25 @@ const SQLITE_CONNECTION_STRING: &'static str = "sqlite://uptime_ferris.db?mode=r
 
 #[tokio::main]
 async fn main() {
+    //Init tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env()
+                .or_else(|_| EnvFilter::try_new("uptime-ferris=info,tower_http=debug"))
+                .unwrap(),
+        )
+        .with_writer(std::io::stdout)
+        .init();
+
     let args = Args::parse();
     let app_state = AppState::from(args).await;
     // carry out migrations
+    info!("Starting db migration");
     let _ = &app_state.migrate_db().await;
+    info!("Finished db migration");
     let cloned_state = app_state.clone();
     //Check the website status
+    info!("Starting background task for checking website status");
     tokio::spawn(async move {
         check_websites_general(cloned_state).await;
     });
@@ -171,13 +188,14 @@ async fn main() {
             get(get_website_by_alias).delete(delete_website),
         )
         .route("/styles.css", get(styles))
+        .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 
     // run it
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
-    println!("listening on {}", listener.local_addr().unwrap());
+    info!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
 
@@ -393,6 +411,7 @@ async fn get_website_by_alias(
     State(state): State<AppState>,
     Path(alias): Path<String>,
 ) -> Result<impl AskamaIntoResponse, ApiError> {
+    info!("retrieving website entry for alias");
     let website = match state {
         AppState::Postgres(ref p) => {
             sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites WHERE alias = $1 LIMIT 1")
@@ -408,9 +427,12 @@ async fn get_website_by_alias(
         }
     };
 
+    info!("Getting stats for last 24h");
     let last_24_hours_data = get_daily_stats(&website.alias, &state).await?;
+    info!("Getting monthly data");
     let monthly_data = get_monthly_stats(&website.alias, &state).await?;
 
+    info!("Getting incidents");
     let incidents = match state {
         AppState::Postgres(p) => {
             sqlx::query_as::<_, Incident>(
@@ -546,9 +568,9 @@ async fn check_websites_postgres(db: PgPool) {
             let response = client.get(website.url).send().await.unwrap();
 
             sqlx::query(
-                "INSERT INTO Logs (website_id, status)
+                r#"INSERT INTO Logs (website_id, status)
                 VALUES
-                ((SELECT id FROM Websites WHERE alias = $1), $2)",
+                ((SELECT id FROM Websites WHERE alias = $1), $2)"#,
             )
             .bind(website.alias)
             .bind(response.status().as_u16() as i16)
