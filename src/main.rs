@@ -1,3 +1,5 @@
+use crate::shared_queries::*;
+use argument_parsing::Args;
 use askama::Template;
 use askama_axum::IntoResponse as AskamaIntoResponse;
 use axum::{
@@ -18,18 +20,11 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use validator::Validate;
 
-/// Configure either Postgres or Sqlite connection string
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Postgres Db Connection String
-    #[arg(short, long, env, default_value = None)]
-    pg: Option<String>,
-
-    /// Sqlite Db
-    #[arg(short, long, env, default_value_t = true)]
-    sqlite: bool,
-}
+mod argument_parsing;
+mod postgres_queries;
+mod shared_queries;
+mod sqlite;
+mod sqlite_queries;
 
 #[derive(Deserialize, sqlx::FromRow, Validate)]
 struct Website {
@@ -90,7 +85,7 @@ impl AppState {
     async fn migrate_db(&self) {
         match self {
             Self::Postgres(p) => Self::migrate_postgres(p).await,
-            Self::Sqlite(s) => Self::migrate_sqlite(s).await,
+            Self::Sqlite(s) => sqlite::migrate_sqlite(s).await,
         }
     }
 
@@ -104,14 +99,7 @@ impl AppState {
             .expect("Postgres migrations failed");
     }
 
-    async fn migrate_sqlite(pool: &SqlitePool) {
-        let migrator = Migrator::new(std::path::Path::new("./migrations_sq"))
-            .await
-            .expect("Migrations folder couldn't be found");
-        migrator.run(pool).await.expect("Sqlite migration failed");
-    }
-
-    async fn from(item: Args) -> Self {
+    async fn from(item: argument_parsing::Args) -> Self {
         if let Some(pg_string) = item.pg {
             if pg_string.is_empty() {
                 AppState::new(
@@ -225,7 +213,7 @@ async fn create_website(
 
     match state {
         AppState::Postgres(p) => {
-            let _ = sqlx::query("INSERT INTO Websites (url, alias) VALUES ($1,$2)")
+            let _ = sqlx::query(INSERT_INTO_WEBSITES_QUERY)
                 .bind(new_website.url)
                 .bind(new_website.alias)
                 .execute(&p)
@@ -233,7 +221,7 @@ async fn create_website(
                 .unwrap();
         }
         AppState::Sqlite(s) => {
-            let _ = sqlx::query("INSERT INTO Websites (url, alias) VALUES ($1,$2)")
+            let _ = sqlx::query(INSERT_INTO_WEBSITES_QUERY)
                 .bind(new_website.url)
                 .bind(new_website.alias)
                 .execute(&s)
@@ -249,12 +237,12 @@ async fn create_website(
 async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoResponse, ApiError> {
     let websites = match state {
         AppState::Postgres(ref p) => {
-            sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites")
+            sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY)
                 .fetch_all(p)
                 .await?
         }
         AppState::Sqlite(ref s) => {
-            sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites")
+            sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY)
                 .fetch_all(s)
                 .await?
         }
@@ -282,36 +270,16 @@ enum SplitBy {
 async fn get_daily_stats(alias: &str, app_state: &AppState) -> Result<Vec<WebsiteStats>, ApiError> {
     let data = match app_state {
         AppState::Postgres(p) => {
-            sqlx::query_as::<_,WebsiteStats>(
-                r#"
-                SELECT date_trunc('hour', created_at) as time,
-                CAST(COUNT(case when status = 200 then 1 end) * 100 / COUNT(*) as int2) as uptime_pct
-                FROM Logs
-                LEFT JOIN Websites on Websites.id = Logs.website_id
-                WHERE Websites.alias = $1
-                GROUP BY time
-                ORDER BY time asc
-                LIMIT 24
-                "#
-            )
-            .bind(alias)
-            .fetch_all(p).await?
-        },
+            sqlx::query_as::<_, WebsiteStats>(postgres_queries::SELECT_DAILY_STATS)
+                .bind(alias)
+                .fetch_all(p)
+                .await?
+        }
         AppState::Sqlite(s) => {
-            sqlx::query_as::<_,WebsiteStats>(
-                r#"
-                SELECT strftime('%Y-%m-%d %H:00:00', created_at) as time,
-                CAST(COUNT(CASE WHEN status = 200 THEN 1 END) * 100 / COUNT(*) AS INTEGER) as uptime_pct
-                FROM Logs
-                LEFT JOIN Websites ON Websites.id = Logs.website_id
-                WHERE Websites.alias = $1
-                GROUP BY time
-                ORDER BY time ASC
-                LIMIT 24
-                "#
-            )
-            .bind(alias)
-            .fetch_all(s).await?
+            sqlx::query_as::<_, WebsiteStats>(sqlite_queries::SELECT_DAILY_STATS)
+                .bind(alias)
+                .fetch_all(s)
+                .await?
         }
     };
 
@@ -329,38 +297,16 @@ async fn get_monthly_stats(
 ) -> Result<Vec<WebsiteStats>, ApiError> {
     let data = match app_state {
         AppState::Postgres(p) => {
-            sqlx::query_as::<_, WebsiteStats>(
-                r#"
-                Select date_trunc('day', created_at) as time,
-                CAST(COUNT(case when status = 200 then 1 end) * 100 / COUNT(*) AS int2) AS uptime_pct
-                FROM Logs
-                LEFT JOIN Websites ON Websites.id = Logs.website_id
-                WHERE Websites.alias = $1
-                GROUP BY time
-                ORDER BY time asc
-                LIMIT 30
-            "#,
-            )
-            .bind(alias)
-            .fetch_all(p)
-            .await?
+            sqlx::query_as::<_, WebsiteStats>(postgres_queries::SELECT_MONTHLY_STATS)
+                .bind(alias)
+                .fetch_all(p)
+                .await?
         }
         AppState::Sqlite(s) => {
-            sqlx::query_as::<_, WebsiteStats>(
-                r#"
-                SELECT strftime('%Y-%m-%d 00:00:00', created_at) as time,
-                CAST(COUNT(CASE WHEN status = 200 THEN 1 END) * 100 / COUNT(*) AS INTEGER) as uptime_pct
-                FROM Logs
-                LEFT JOIN Websites ON Websites.id = Logs.website_id
-                WHERE Websites.alias = $1
-                GROUP BY time
-                ORDER BY time ASC
-                LIMIT 30
-            "#,
-            )
-            .bind(alias)
-            .fetch_all(s)
-            .await?
+            sqlx::query_as::<_, WebsiteStats>(sqlite_queries::SELECT_MONTHLY_STATS)
+                .bind(alias)
+                .fetch_all(s)
+                .await?
         }
     };
 
@@ -419,13 +365,13 @@ async fn get_website_by_alias(
     info!("retrieving website entry for alias");
     let website = match state {
         AppState::Postgres(ref p) => {
-            sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites WHERE alias = $1 LIMIT 1")
+            sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_TOP_ONE_WHERE_ALIAS_QUERY)
                 .bind(&alias)
                 .fetch_one(p)
                 .await?
         }
         AppState::Sqlite(ref s) => {
-            sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites WHERE alias = $1 LIMIT 1")
+            sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_TOP_ONE_WHERE_ALIAS_QUERY)
                 .bind(&alias)
                 .fetch_one(s)
                 .await?
@@ -440,30 +386,16 @@ async fn get_website_by_alias(
     info!("Getting incidents");
     let incidents = match state {
         AppState::Postgres(p) => {
-            sqlx::query_as::<_, Incident>(
-                "
-            SELECT Logs.created_at as time,
-            Logs.status from Logs
-            LEFT JOIN Websites on Websites.id = Logs.website_id
-            where Websites.Alias = $1 and Logs.status <> 200
-            ",
-            )
-            .bind(&alias)
-            .fetch_all(&p)
-            .await?
+            sqlx::query_as::<_, Incident>(SELECT_INCIDENTS_BY_WEBSITE_ALIAS_QUERY)
+                .bind(&alias)
+                .fetch_all(&p)
+                .await?
         }
         AppState::Sqlite(s) => {
-            sqlx::query_as::<_, Incident>(
-                "
-            SELECT Logs.created_at as time,
-            Logs.status from Logs
-            LEFT JOIN Websites on Websites.id = Logs.website_id
-            where Websites.Alias = $1 and Logs.status <> 200
-            ",
-            )
-            .bind(&alias)
-            .fetch_all(&s)
-            .await?
+            sqlx::query_as::<_, Incident>(SELECT_INCIDENTS_BY_WEBSITE_ALIAS_QUERY)
+                .bind(&alias)
+                .fetch_all(&s)
+                .await?
         }
     };
 
@@ -494,22 +426,16 @@ async fn delete_website(
 
 async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
-    if let Err(e) = sqlx::query(
-        "DELETE FROM Logs WHERE id IN
-        (SELECT Logs.id
-        FROM Logs
-        LEFT JOIN Websites ON Websites.id = Logs.website_id
-        WHERE Websites.alias = $1)",
-    )
-    .bind(alias)
-    .execute(&mut *tx)
-    .await
+    if let Err(e) = sqlx::query(DELETE_LOGS_BY_WEBSITE_ALIAS_QUERY)
+        .bind(alias)
+        .execute(&mut *tx)
+        .await
     {
         tx.rollback().await?;
         return Err(ApiError::SQL(e));
     };
 
-    if let Err(e) = sqlx::query("DELETE FROM Websites WHERE alias = $1")
+    if let Err(e) = sqlx::query(DELETE_WEBSITE_BY_ALIAS_QUERY)
         .bind(alias)
         .execute(&mut *tx)
         .await
@@ -525,22 +451,16 @@ async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError
 
 async fn delete_website_sqlite(alias: &str, db: SqlitePool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
-    if let Err(e) = sqlx::query(
-        "DELETE FROM Logs WHERE id IN
-        (SELECT Logs.id
-        FROM Logs
-        LEFT JOIN Websites ON Websites.id = Logs.website_id
-        WHERE Websites.alias = $1)",
-    )
-    .bind(alias)
-    .execute(&mut *tx)
-    .await
+    if let Err(e) = sqlx::query(DELETE_LOGS_BY_WEBSITE_ALIAS_QUERY)
+        .bind(alias)
+        .execute(&mut *tx)
+        .await
     {
         tx.rollback().await?;
         return Err(ApiError::SQL(e));
     };
 
-    if let Err(e) = sqlx::query("DELETE FROM Websites WHERE alias = $1")
+    if let Err(e) = sqlx::query(DELETE_WEBSITE_BY_ALIAS_QUERY)
         .bind(alias)
         .execute(&mut *tx)
         .await
@@ -567,23 +487,19 @@ async fn check_websites_postgres(db: PgPool) {
 
         let client = reqwest::Client::new();
 
-        let mut res = sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites").fetch(&db);
+        let mut res = sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY).fetch(&db);
 
         while let Some(website) = res.next().await {
             let website = website.unwrap();
 
             let response = client.get(website.url).send().await.unwrap();
 
-            sqlx::query(
-                r#"INSERT INTO Logs (website_id, status)
-                VALUES
-                ((SELECT id FROM Websites WHERE alias = $1), $2)"#,
-            )
-            .bind(website.alias)
-            .bind(response.status().as_u16() as i16)
-            .execute(&db)
-            .await
-            .unwrap();
+            sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
+                .bind(website.alias)
+                .bind(response.status().as_u16() as i16)
+                .execute(&db)
+                .await
+                .unwrap();
         }
     }
 }
@@ -595,23 +511,19 @@ async fn check_websites_sqlite(db: SqlitePool) {
 
         let client = reqwest::Client::new();
 
-        let mut res = sqlx::query_as::<_, Website>("SELECT url, alias FROM Websites").fetch(&db);
+        let mut res = sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY).fetch(&db);
 
         while let Some(website) = res.next().await {
             let website = website.unwrap();
 
             let response = client.get(website.url).send().await.unwrap();
 
-            sqlx::query(
-                "INSERT INTO Logs (website_id, status)
-                VALUES
-                ((SELECT id FROM Websites WHERE alias = $1), $2)",
-            )
-            .bind(website.alias)
-            .bind(response.status().as_u16() as i16)
-            .execute(&db)
-            .await
-            .unwrap();
+            sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
+                .bind(website.alias)
+                .bind(response.status().as_u16() as i16)
+                .execute(&db)
+                .await
+                .unwrap();
         }
     }
 }
