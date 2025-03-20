@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, SqlitePool, migrate::Migrator};
 use tokio::time::{self, Duration};
 use tower_http::trace::TraceLayer;
-use tracing::{info, instrument};
-use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::info;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use validator::Validate;
 
 /// Configure either Postgres or Sqlite connection string
