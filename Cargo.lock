@@ -2623,7 +2623,6 @@ dependencies = [
  "chrono",
  "clap",
  "futures-util",
- "log",
  "reqwest",
  "serde",
  "sqlx",

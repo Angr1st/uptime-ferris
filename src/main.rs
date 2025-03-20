@@ -9,14 +9,13 @@ use axum::{
 use chrono::{DateTime, Timelike, Utc};
 use clap::Parser;
 use futures_util::StreamExt;
-use log::info;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, SqlitePool, migrate::Migrator};
 use tokio::time::{self, Duration};
 use tower_http::trace::TraceLayer;
-use tracing::instrument;
-use tracing_subscriber::filter::EnvFilter;
+use tracing::{info, instrument};
+use tracing_subscriber::{filter::EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 use validator::Validate;
 
 /// Configure either Postgres or Sqlite connection string
@@ -157,13 +156,19 @@ const SQLITE_CONNECTION_STRING: &'static str = "sqlite://uptime_ferris.db?mode=r
 #[tokio::main]
 async fn main() {
     //Init tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .or_else(|_| EnvFilter::try_new("uptime-ferris=info,tower_http=debug"))
-                .unwrap(),
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+                // axum logs rejections from built-in extractors with the `axum::rejection`
+                // target, at `TRACE` level. `axum::rejection=trace` enables showing those events
+                format!(
+                    "{}=debug,tower_http=debug,axum::rejection=trace",
+                    env!("CARGO_CRATE_NAME")
+                )
+                .into()
+            }),
         )
-        .with_writer(std::io::stdout)
+        .with(tracing_subscriber::fmt::layer())
         .init();
 
     let args = Args::parse();
