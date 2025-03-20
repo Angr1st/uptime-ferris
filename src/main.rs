@@ -332,7 +332,7 @@ async fn get_monthly_stats(
             sqlx::query_as::<_, WebsiteStats>(
                 r#"
                 Select date_trunc('day', created_at) as time,
-                CAST(COUNT(case when status = 200 then 1) * 100 / COUNT(*) AS int2) AS uptime_pct
+                CAST(COUNT(case when status = 200 then 1 end) * 100 / COUNT(*) AS int2) AS uptime_pct
                 FROM Logs
                 LEFT JOIN Websites ON Websites.id = Logs.website_id
                 WHERE Websites.alias = $1
@@ -495,9 +495,11 @@ async fn delete_website(
 async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
     if let Err(e) = sqlx::query(
-        "DELETE FROM Logs
+        "DELETE FROM Logs WHERE id IN
+        (SELECT Logs.id
+        FROM Logs
         LEFT JOIN Websites ON Websites.id = Logs.website_id
-        WHERE Websites.alias = $1",
+        WHERE Websites.alias = $1)",
     )
     .bind(alias)
     .execute(&mut *tx)
@@ -524,7 +526,7 @@ async fn delete_website_postgres(alias: &str, db: PgPool) -> Result<(), ApiError
 async fn delete_website_sqlite(alias: &str, db: SqlitePool) -> Result<(), ApiError> {
     let mut tx = db.begin().await?;
     if let Err(e) = sqlx::query(
-        "DELETE FROM Logs WHERE id IN 
+        "DELETE FROM Logs WHERE id IN
         (SELECT Logs.id
         FROM Logs
         LEFT JOIN Websites ON Websites.id = Logs.website_id
