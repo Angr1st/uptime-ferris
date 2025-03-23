@@ -515,6 +515,7 @@ async fn check_websites_sqlite(db: SqlitePool) {
     loop {
         interval.tick().await;
 
+        info!("Starting Website Uptime check");
         let client = reqwest::Client::new();
 
         let mut res = sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY).fetch(&db);
