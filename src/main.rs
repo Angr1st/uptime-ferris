@@ -230,6 +230,7 @@ async fn create_website(
             let _ = sqlx::query(INSERT_INTO_WEBSITES_QUERY)
                 .bind(new_website.url)
                 .bind(new_website.alias)
+                .bind(Utc::now())
                 .execute(&s)
                 .await
                 .unwrap();

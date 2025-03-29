@@ -1,17 +1,15 @@
 {% extends "base.html" %} {% block content %}
-<div class="navbar bg-base-100 shadow-sm">
-  <a class="btn btn-ghost text-xl">Uptime Ferris</a>
-</div>
 <form action="/websites" method="POST">
-    <fieldset class="fieldset">
+    <fieldset class="fieldset w-xs bg-base-200 border border-base-300 p-4 rounded-box">
+        <legend class="fieldset-legend">Add New Website Monitor</legend>
+
         <legend class="fieldset-legend">Url</legend>
-        <input name="url" placeholder="https://website.com" required class="input"/>
-    </fieldset>
-    <fieldset class="fieldset">
+        <input type="url"  name="url" placeholder="https://website.com" required class="input"/>
+        
         <legend class="fieldset-legend">Alias</legend>
         <input name="alias" placeholder="Alias" required class="input" />
+    <button class="btn btn-success mt-4" type="submit">Submit</button>
     </fieldset>
-    <button class="btn btn-success" type="submit">Submit</button>
 </form>
 <div class="website-list">
     {% for log in logs %}

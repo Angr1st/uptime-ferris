@@ -1,4 +1,5 @@
-pub const INSERT_INTO_WEBSITES_QUERY: &str = "INSERT INTO Websites (url, alias) VALUES ($1,$2)";
+pub const INSERT_INTO_WEBSITES_QUERY: &str =
+    "INSERT INTO Websites (url, alias, created_at) VALUES ($1,$2,$3)";
 pub const SELECT_URL_ALIAS_WEBSITES_QUERY: &str = "SELECT url, alias FROM Websites";
 pub const SELECT_URL_ALIAS_WEBSITES_TOP_ONE_WHERE_ALIAS_QUERY: &str =
     "SELECT url, alias FROM Websites WHERE alias = $1 LIMIT 1";
