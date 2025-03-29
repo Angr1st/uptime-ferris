@@ -184,6 +184,7 @@ async fn main() {
             get(get_website_by_alias).delete(delete_website),
         )
         .route("/styles.css", get(styles))
+        .route("/logo.svg", get(logo))
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 
@@ -203,6 +204,14 @@ async fn styles() -> impl AxumIntoResponse {
         .status(StatusCode::OK)
         .header("Content-Type", "text/css")
         .body(include_str!("../templates/styles.css").to_owned())
+        .unwrap()
+}
+
+async fn logo() -> impl AxumIntoResponse {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "image/svg+xml")
+        .body(include_str!("../assets/uptime_ferris_logo.svg").to_owned())
         .unwrap()
 }
 
