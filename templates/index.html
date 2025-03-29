@@ -1,9 +1,17 @@
 {% extends "base.html" %} {% block content %}
-<h1>Uptime Ferris</h1>
+<div class="navbar bg-base-100 shadow-sm">
+  <a class="btn btn-ghost text-xl">Uptime Ferris</a>
+</div>
 <form action="/websites" method="POST">
-    <input name="url" placeholder="url" required />
-    <input name="alias" placeholder="alias" required />
-    <button class="submit-button" type="submit">Submit</button>
+    <fieldset class="fieldset">
+        <legend class="fieldset-legend">Url</legend>
+        <input name="url" placeholder="https://website.com" required class="input"/>
+    </fieldset>
+    <fieldset class="fieldset">
+        <legend class="fieldset-legend">Alias</legend>
+        <input name="alias" placeholder="Alias" required class="input" />
+    </fieldset>
+    <button class="btn btn-success" type="submit">Submit</button>
 </form>
 <div class="website-list">
     {% for log in logs %}
@@ -29,7 +37,6 @@
             {% else %}
             <div class="tooltip">
                 🔴
-
                 <span class="tooltiptext"
                     >{{timestamp.time}} Uptime:
                     {{timestamp.uptime_pct.unwrap()}}%</span
@@ -42,7 +49,7 @@
             <a href="/websites/{{log.alias}}" class="view-button">View</a>
             <button
                 hx-delete="/websites/{{log.alias}}"
-                class="delete-button"
+                class="btn btn-error"
                 hx-confirm="Are you sure you want to stop tracking this website?"
                 hx-target="closest .website"
                 hx-swap="outerHTML"
