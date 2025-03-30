@@ -45,15 +45,20 @@
         </div>
         <div>
             <a href="/websites/{{log.alias}}" class="btn btn-outline btn-info">View</a>
-            <button
-                hx-delete="/websites/{{log.alias}}"
-                class="btn btn-error"
-                hx-confirm="Are you sure you want to stop tracking this website?"
-                hx-target="closest .website"
-                hx-swap="outerHTML"
-            >
-                Delete
-            </button>
+            <button class="btn btn-error" onclick="Website_Monitor_Delete_Modal.showModal()">Delete</button>
+            <dialog id="Website_Monitor_Delete_Modal" class="modal modal-bottom sm:modal-middle">
+              <div class="modal-box">
+                <h3 class="text-lg font-bold">Confirmation</h3>
+                <p class="py-4">Are you sure you want to stop monitoring this website?</p>
+                <div class="modal-action">
+                  <form method="dialog">
+                    <!-- if there is a button in form, it will close the modal -->
+                    <button hx-delete="/websites/{{log.alias}}" class="btn btn-error" hx-target="closest .website"hx-swap="outerHTML">Confirm</button>
+                    <button class="btn btn-outline">Cancel</button>
+                  </form>
+                </div>
+              </div>
+            </dialog>
         </div>
     </div>
     {% endfor %}
