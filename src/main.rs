@@ -561,6 +561,7 @@ async fn delete_website_sqlite(alias: &str, db: SqlitePool) -> Result<(), ApiErr
 
     Ok(())
 }
+
 async fn check_websites_general(app_state: AppState) {
     match app_state {
         AppState::Postgres(p) => check_websites_postgres(p).await,
@@ -580,14 +581,24 @@ async fn check_websites_postgres(db: PgPool) {
         while let Some(website) = res.next().await {
             let website = website.unwrap();
 
-            let response = client.get(website.url).send().await.unwrap();
+            let response = client.get(website.url).send().await;
 
-            sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
-                .bind(website.alias)
-                .bind(response.status().as_u16() as i16)
-                .execute(&db)
-                .await
-                .unwrap();
+            if let Ok(response) = response {
+                sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
+                    .bind(website.alias)
+                    .bind(response.status().as_u16() as i16)
+                    .execute(&db)
+                    .await
+                    .unwrap();
+            } else {
+                // Website unreachable or Server has not internet access
+                sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
+                    .bind(website.alias)
+                    .bind(-1 as i16)
+                    .execute(&db)
+                    .await
+                    .unwrap();
+            }
         }
     }
 }
@@ -605,14 +616,24 @@ async fn check_websites_sqlite(db: SqlitePool) {
         while let Some(website) = res.next().await {
             let website = website.unwrap();
 
-            let response = client.get(website.url).send().await.unwrap();
+            let response = client.get(website.url).send().await;
 
-            sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
-                .bind(website.alias)
-                .bind(response.status().as_u16() as i16)
-                .execute(&db)
-                .await
-                .unwrap();
+            if let Ok(response) = response {
+                sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
+                    .bind(website.alias)
+                    .bind(response.status().as_u16() as i16)
+                    .execute(&db)
+                    .await
+                    .unwrap();
+            } else {
+                // Website unreachable or Server has not internet access
+                sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
+                    .bind(website.alias)
+                    .bind(-1 as i16)
+                    .execute(&db)
+                    .await
+                    .unwrap();
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="cupcake" style="scroll-padding-top: 5rem; scroll-behavior: smooth;">
+<html id="html-root" lang="en" data-theme="cupcake" style="scroll-padding-top: 5rem; scroll-behavior: smooth;">
     <head>
         <script
             src="https://unpkg.com/htmx.org@2.0.4"
@@ -18,7 +18,7 @@
         <title>Uptime Ferris</title>
         {% block head %}{% endblock %}
     </head>
-    <body style="font-family: Outfit, Noto Sans JP, Noto Sans, Vazirmatn, sans-serif;">
+    <body style="font-family: Outfit, Noto Sans JP, Noto Sans, Vazirmatn, sans-serif;" onload="startup(event)">
         <div class="navbar sticky bg-base-100 shadow-sm">
             <!--Logo + Name-->
             <div class="flex-1">
@@ -30,7 +30,7 @@
             <!--Theme Switcher-->
             <div class="flex-none pr-2">
                 <label class="toggle text-base-content">
-                  <input type="checkbox" value="aqua" class="theme-controller" />
+                  <input id="theme-checkbox" type="checkbox" value="aqua" class="theme-controller" onclick="theme_change(this, event)"/>
                   <svg aria-label="sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></g></svg>
                   <svg aria-label="moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g stroke-linejoin="round" stroke-linecap="round" stroke-width="2" fill="none" stroke="currentColor"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></g></svg>
                 </label>
@@ -55,5 +55,53 @@
             <p>Placeholder content</p>
             {% endblock %}
         </div>
+        <script>
+        const THEME = "Theme";
+        function get_html_element() {
+            return document.getElementById("html-root");
+        }
+        
+        function get_base_theme() {
+            let data_theme = get_html_element().getAttribute("data-theme");
+            return data_theme;
+        }
+
+        function set_data_theme(themeName) {
+            get_html_element().setAttribute("data-theme", themeName);
+        }
+        
+        function get_stored_theme() {
+            let stored_theme = localStorage.getItem(THEME);
+            if (stored_theme == null) {
+                return get_base_theme();
+            } else {
+                return stored_theme;
+            }
+        }
+        
+        function startup(event) {
+            let base_theme = get_base_theme();
+            let current_theme = get_stored_theme();
+            if (current_theme !== base_theme) {
+                set_data_theme(current_theme);
+                let theme_checkbox = document.getElementById("theme-checkbox");
+                theme_checkbox.checked = true;
+                theme_checkbox.value = base_theme;
+            } else {
+                localStorage.setItem(THEME, base_theme);
+            }
+            event.stopPropagation();
+        }
+        
+        function theme_change(element, event) {
+            let value = element.value;
+            if (element.checked) {
+                localStorage.setItem(THEME, value);
+            } else {
+                localStorage.removeItem(THEME);
+            }
+            event.stopPropagation();
+        }
+        </script>
     </body>
 </html>
