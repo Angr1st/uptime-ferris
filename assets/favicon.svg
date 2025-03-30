@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:svgjs="http://svgjs.dev/svgjs" width="200" height="200"><svg id="SvgjsSvg1353" data-name="Ebene 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 200 200">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fbf8f9;
+      }
+
+      .cls-2 {
+        fill: #f2f2f2;
+      }
+
+      .cls-3 {
+        fill: url(#SvgjsLinearGradient1352);
+      }
+    </style>
+    <linearGradient id="SvgjsLinearGradient1352" x1="101.15" y1="176.82" x2="101.15" y2="76.49" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e34613"></stop>
+      <stop offset=".64" stop-color="#f28f09"></stop>
+    </linearGradient>
+  </defs>
+  <path id="SvgjsPath1351" class="cls-1" d="M179.2,98.74c0,1.68-.05,3.35-.16,5.01-2.58,40.79-36.47,73.07-77.91,73.07S26.16,144.88,23.26,104.41c-.14-1.87-.21-3.76-.21-5.67,0-43.12,34.96-78.07,78.08-78.07s78.07,34.95,78.07,78.07Z"></path>
+  <path class="cls-2" d="M63.42,168.12l-.16.79c-.66-.35-1.32-.71-1.96-1.09l2.12.3Z"></path>
+  <g id="SvgjsG1350">
+    <path id="SvgjsPath1349" class="cls-3" d="M179.04,103.75c-2.58,40.79-36.47,73.07-77.91,73.07S26.16,144.88,23.26,104.41c3.78,1.83,7.72,4.56,9.79,4.84,7.79,1.03,3.67-19,8.92-20.64,6.58-2.01,13.93,12.19,19.83,8.82,2.01-1.15,4.43-14.08,6.48-16.62,5.83-7.2,13.6,14.05,20.4,11.42,3.28-3.13,8.59-21.13,15.04-14.14,1.75,1.88,7.3,13.58,8,14,.55.35,4.31.32,4.95-.03.56-.33,6.04-7.57,7.24-8.8,2.06-2.16,5.66-6.1,8.62-2.45,1.98,2.43,4.69,15.61,6.49,16.62,5.8,3.29,13.4-10.78,19.82-8.82,4.88,1.52,1.79,18.85,7.27,20.37,2.64.71,8.28-3.23,12.93-5.23Z"></path>
+  </g>
+</svg><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
+@media (prefers-color-scheme: dark) { :root { filter: none; } }
+</style></svg>
