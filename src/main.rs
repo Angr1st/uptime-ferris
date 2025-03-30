@@ -4,6 +4,7 @@ use askama::Template;
 use askama_axum::IntoResponse as AskamaIntoResponse;
 use axum::{
     Form, Router,
+    body::{Body, Bytes},
     extract::{Path, State},
     response::{IntoResponse as AxumIntoResponse, Redirect, Response},
     routing::{get, post},
@@ -184,7 +185,20 @@ async fn main() {
             get(get_website_by_alias).delete(delete_website),
         )
         .route("/styles.css", get(styles))
-        .route("/logo.svg", get(logo))
+        .route("/assets/logo.svg", get(logo))
+        .route("/assets/favicon-96x96.png", get(favicon_96_png))
+        .route("/assets/favicon.svg", get(favicon_svg))
+        .route("/assets/favicon.ico", get(favicon_ico))
+        .route("/assets/apple-touch-icon.png", get(apple_touch_icon))
+        .route("/assets/site.webmanifest", get(site_webmanifest))
+        .route(
+            "/assets/web-app-manifest-192x192.png",
+            get(web_app_manifest_192),
+        )
+        .route(
+            "/assets/web-app-manifest-512x512.png",
+            get(web_app_manifest_512),
+        )
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 
@@ -199,21 +213,61 @@ async fn main() {
         .unwrap();
 }
 
-async fn styles() -> impl AxumIntoResponse {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header("Content-Type", "text/css")
-        .body(include_str!("../templates/styles.css").to_owned())
-        .unwrap()
+macro_rules! included_text_content_handler {
+    ($name:ident,$content_type:literal,$path:literal) => {
+        async fn $name() -> impl AxumIntoResponse {
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", $content_type)
+                .body(include_str!($path).to_owned())
+                .unwrap()
+        }
+    };
 }
 
-async fn logo() -> impl AxumIntoResponse {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header("Content-Type", "image/svg+xml")
-        .body(include_str!("../assets/uptime_ferris_logo.svg").to_owned())
-        .unwrap()
+included_text_content_handler!(styles, "text/css", "../templates/styles.css");
+included_text_content_handler!(
+    site_webmanifest,
+    "application/webmanifest+json",
+    "../assets/site.webmanifest"
+);
+included_text_content_handler!(logo, "image/svg+xml", "../assets/uptime_ferris_logo.svg");
+included_text_content_handler!(favicon_svg, "image/svg+xml", "../assets/favicon.svg");
+
+macro_rules! included_binary_content_handler {
+    ($name:ident,$content_type:literal,$path:literal) => {
+        async fn $name() -> impl AxumIntoResponse {
+            let body: Body = Bytes::from_static(include_bytes!($path)).into();
+            Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", $content_type)
+                .body(body)
+                .unwrap()
+        }
+    };
 }
+
+included_binary_content_handler!(
+    apple_touch_icon,
+    "image/png",
+    "../assets/apple-touch-icon.png"
+);
+included_binary_content_handler!(favicon_96_png, "image/png", "../assets/favicon-96x96.png");
+included_binary_content_handler!(
+    web_app_manifest_192,
+    "image/png",
+    "../assets/web-app-manifest-192x192.png"
+);
+included_binary_content_handler!(
+    web_app_manifest_512,
+    "image/png",
+    "../assets/web-app-manifest-512x512.png"
+);
+included_binary_content_handler!(
+    favicon_ico,
+    "image/vnd.microsoft.icon",
+    "../assets/favicon.ico"
+);
 
 async fn create_website(
     State(state): State<AppState>,
