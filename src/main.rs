@@ -413,7 +413,7 @@ fn fill_data_gaps(
     // If the length of data is not as long as the number of required splits (24)
     // then we fill in the gaps
     if (data.len() as i32) < splits {
-        for i in 1..24 {
+        for i in 0..24 {
             let time = Utc::now() - chrono::Duration::seconds((number_of_seconds * i).into());
             let time = time
                 .with_minute(0)
@@ -669,8 +669,18 @@ mod test {
     use super::*;
 
     #[test]
-    fn fill_data_gaps_returns_expected_amount_of_segments() {
+    fn fill_data_gaps_returns_expected_amount_of_segments_24_hours_3600() {
         let result = fill_data_gaps(vec![], 24, SplitBy::Hour, 3600);
         assert_eq!(result.len(), 24);
+    }
+
+    #[test]
+    fn fill_data_gaps_returns_expected_amount_of_segments_1_hours_3600() {
+        let websitestat = WebsiteStats {
+            time: Utc::now(),
+            uptime_pct: Some(200),
+        };
+        let result = fill_data_gaps(vec![websitestat], 1, SplitBy::Hour, 3600);
+        assert_eq!(result.len(), 1);
     }
 }
