@@ -6,7 +6,7 @@ use axum::{
     Form, Router,
     body::{Body, Bytes},
     extract::{Path, State},
-    response::{IntoResponse as AxumIntoResponse, Redirect, Response},
+    response::{IntoResponse as AxumIntoResponse, Response},
     routing::{get, post},
 };
 use chrono::{DateTime, Timelike, Utc};
