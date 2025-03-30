@@ -57,49 +57,17 @@
         </div>
         <script>
         const THEME = "Theme";
-        function get_html_element() {
-            return document.getElementById("html-root");
-        }
-        
-        function get_base_theme() {
-            let data_theme = get_html_element().getAttribute("data-theme");
-            return data_theme;
-        }
-
-        function set_data_theme(themeName) {
-            get_html_element().setAttribute("data-theme", themeName);
-        }
-        
-        function get_stored_theme() {
-            let stored_theme = localStorage.getItem(THEME);
-            if (stored_theme == null) {
-                return get_base_theme();
-            } else {
-                return stored_theme;
-            }
-        }
-        
         function startup(event) {
-            let base_theme = get_base_theme();
-            let current_theme = get_stored_theme();
-            if (current_theme !== base_theme) {
-                set_data_theme(current_theme);
-                let theme_checkbox = document.getElementById("theme-checkbox");
-                theme_checkbox.checked = true;
-                theme_checkbox.value = base_theme;
-            } else {
-                localStorage.setItem(THEME, base_theme);
+            let stored_checkbox_state = localStorage.getItem(THEME) ?? false;
+            let theme_checkbox = document.getElementById("theme-checkbox");
+            if (stored_checkbox_state !== theme_checkbox.checked.toString()) {
+                theme_checkbox.checked = stored_checkbox_state;
             }
             event.stopPropagation();
         }
         
         function theme_change(element, event) {
-            let value = element.value;
-            if (element.checked) {
-                localStorage.setItem(THEME, value);
-            } else {
-                localStorage.removeItem(THEME);
-            }
+            localStorage.setItem(THEME, element.checked);
             event.stopPropagation();
         }
         </script>
