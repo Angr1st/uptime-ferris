@@ -1,5 +1,7 @@
-{% extends "base.html" %} {% block content %}
-<form action="/websites" method="POST">
+{% extends "base.html" %}
+
+{% block content %}
+<form hx-post="/websites" hx-swap="innerHTML" hx-target="#website-list">
     <fieldset class="fieldset w-xs bg-base-300 border border-base-300 p-4 rounded-box">
         <legend class="fieldset-legend">Add New Website Monitor</legend>
 
@@ -7,12 +9,12 @@
         <input type="url"  name="url" placeholder="https://website.com" required class="input"/>
         
         <legend class="fieldset-legend">Alias</legend>
-        <input name="alias" placeholder="Alias" required class="input" />
+        <input name="alias" placeholder="Alias" required class="input"/>
     <button class="btn btn-success mt-4" type="submit">Submit</button>
     </fieldset>
 </form>
-<div class="mt-2 website-list list bg-base-100 rounded-box shadow-md">
-    {% if logs.len() > 1 %}
+<div id="website-list" class="mt-2 list bg-base-100 rounded-box shadow-md">
+    {% if logs.len() > 0 %}
         <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Monitored Websites</li>
     {% endif %}
     {% for log in logs %}
@@ -59,7 +61,7 @@
                 <div class="modal-action">
                   <form method="dialog">
                     <!-- if there is a button in form, it will close the modal -->
-                    <button hx-delete="/websites/{{log.alias}}" class="btn btn-error" hx-target="closest .website"hx-swap="outerHTML">Confirm</button>
+                    <button hx-delete="/websites/{{log.alias}}" class="btn btn-error" hx-target="closest .website" hx-swap="outerHTML">Confirm</button>
                     <button class="btn btn-outline">Cancel</button>
                   </form>
                 </div>

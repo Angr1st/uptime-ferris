@@ -63,6 +63,13 @@ struct WebsiteLogsTemplate {
     logs: Vec<WebsiteInfo>,
 }
 
+#[derive(Serialize, Template)]
+#[template(path = "websites-fragment.html")]
+struct WebsiteLogsFragmentTemplate {
+    logged_in: bool,
+    logs: Vec<WebsiteInfo>,
+}
+
 #[derive(Serialize, sqlx::FromRow)]
 struct SingleWebsiteLog {
     log: WebsiteInfo,
@@ -138,11 +145,18 @@ impl AppState {
 
 enum ApiError {
     SQL(sqlx::Error),
+    Validation(String),
 }
 
 impl From<sqlx::Error> for ApiError {
     fn from(e: sqlx::Error) -> Self {
         Self::SQL(e)
+    }
+}
+
+impl From<String> for ApiError {
+    fn from(value: String) -> Self {
+        Self::Validation(value)
     }
 }
 
@@ -152,6 +166,10 @@ impl AxumIntoResponse for ApiError {
             Self::SQL(e) => AxumIntoResponse::into_response((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("SQL Error: {e}"),
+            )),
+            Self::Validation(s) => AxumIntoResponse::into_response((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Validation Error: {s}"),
             )),
         }
     }
@@ -286,39 +304,38 @@ included_binary_content_handler!(
 async fn create_website(
     State(state): State<AppState>,
     Form(new_website): Form<Website>,
-) -> Result<impl AxumIntoResponse, impl AxumIntoResponse> {
+) -> Result<impl AskamaIntoResponse, ApiError> {
     if new_website.validate().is_err() {
-        return Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Validation Error: is your website a reachable URL?",
-        ));
+        return Err(String::from("Validation Error: is your website a reachable URL?").into());
     }
 
     match state {
-        AppState::Postgres(p) => {
+        AppState::Postgres(ref p) => {
             let _ = sqlx::query(INSERT_INTO_WEBSITES_QUERY)
                 .bind(new_website.url)
                 .bind(new_website.alias)
-                .execute(&p)
-                .await
-                .unwrap();
+                .execute(p)
+                .await?;
         }
-        AppState::Sqlite(s) => {
+        AppState::Sqlite(ref s) => {
             let _ = sqlx::query(INSERT_INTO_WEBSITES_QUERY)
                 .bind(new_website.url)
                 .bind(new_website.alias)
                 .bind(Utc::now())
-                .execute(&s)
-                .await
-                .unwrap();
+                .execute(s)
+                .await?;
         }
     }
 
-    Ok(Redirect::to("/"))
+    let logs = get_website_logs(state).await?;
+
+    Ok(WebsiteLogsFragmentTemplate {
+        logged_in: false,
+        logs,
+    })
 }
 
-#[axum::debug_handler]
-async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoResponse, ApiError> {
+async fn get_website_logs(state: AppState) -> Result<Vec<WebsiteInfo>, ApiError> {
     let websites = match state {
         AppState::Postgres(ref p) => {
             sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY)
@@ -343,6 +360,12 @@ async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoRe
         })
     }
 
+    Ok(logs)
+}
+
+#[axum::debug_handler]
+async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoResponse, ApiError> {
+    let logs = get_website_logs(state).await?;
     Ok(WebsiteLogsTemplate {
         logs,
         logged_in: false,
