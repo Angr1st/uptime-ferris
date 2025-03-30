@@ -11,9 +11,12 @@
     <button class="btn btn-success mt-4" type="submit">Submit</button>
     </fieldset>
 </form>
-<div class="website-list">
+<div class="mt-2 website-list list bg-base-100 rounded-box shadow-md">
+    {% if logs.len() > 1 %}
+        <li class="p-4 pb-2 text-xs opacity-60 tracking-wide">Monitored Websites</li>
+    {% endif %}
     {% for log in logs %}
-    <div class="website">
+    <div class="website list-row">
         <h2 class="website-name">{{log.alias}} - {{log.url}}</h2>
         <div>
             Last 24 hours: {% for timestamp in log.data %} {% match
