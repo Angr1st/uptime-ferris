@@ -20,7 +20,7 @@ use tokio::{
     time::{self, Duration},
 };
 use tower_http::trace::TraceLayer;
-use tracing::info;
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use validator::Validate;
 
@@ -583,13 +583,12 @@ async fn check_websites_postgres(db: PgPool) {
 
             let response = client.get(website.url).send().await;
 
-            if let Ok(response) = response {
+            let result = if let Ok(response) = response {
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
                     .bind(website.alias)
                     .bind(response.status().as_u16() as i16)
                     .execute(&db)
                     .await
-                    .unwrap();
             } else {
                 // Website unreachable or Server has not internet access
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
@@ -597,7 +596,9 @@ async fn check_websites_postgres(db: PgPool) {
                     .bind(-1 as i16)
                     .execute(&db)
                     .await
-                    .unwrap();
+            };
+            if let Err(error) = result {
+                error!("Error inserting log into db: {error}");
             }
         }
     }
@@ -618,13 +619,12 @@ async fn check_websites_sqlite(db: SqlitePool) {
 
             let response = client.get(website.url).send().await;
 
-            if let Ok(response) = response {
+            let result = if let Ok(response) = response {
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
                     .bind(website.alias)
                     .bind(response.status().as_u16() as i16)
                     .execute(&db)
                     .await
-                    .unwrap();
             } else {
                 // Website unreachable or Server has not internet access
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
@@ -632,7 +632,9 @@ async fn check_websites_sqlite(db: SqlitePool) {
                     .bind(-1 as i16)
                     .execute(&db)
                     .await
-                    .unwrap();
+            };
+            if let Err(error) = result {
+                error!("Error inserting log into db: {error}");
             }
         }
     }
