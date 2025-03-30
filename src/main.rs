@@ -51,15 +51,29 @@ pub struct WebsiteStats {
     uptime_pct: Option<i16>,
 }
 
-#[derive(Serialize, sqlx::FromRow, Template)]
-#[template(path = "index.html")]
+#[derive(Serialize, sqlx::FromRow)]
 struct WebsiteLogs {
     logs: Vec<WebsiteInfo>,
 }
 
-#[derive(Serialize, sqlx::FromRow, Template)]
-#[template(path = "single_website.html")]
+#[derive(Serialize, Template)]
+#[template(path = "index.html")]
+struct WebsiteLogsTemplate {
+    logged_in: bool,
+    logs: Vec<WebsiteInfo>,
+}
+
+#[derive(Serialize, sqlx::FromRow)]
 struct SingleWebsiteLog {
+    log: WebsiteInfo,
+    incidents: Vec<Incident>,
+    monthly_data: Vec<WebsiteStats>,
+}
+
+#[derive(Serialize, Template)]
+#[template(path = "single_website.html")]
+struct SingleWebsiteLogTemplate {
+    logged_in: bool,
     log: WebsiteInfo,
     incidents: Vec<Incident>,
     monthly_data: Vec<WebsiteStats>,
@@ -329,7 +343,10 @@ async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoRe
         })
     }
 
-    Ok(WebsiteLogs { logs })
+    Ok(WebsiteLogsTemplate {
+        logs,
+        logged_in: false,
+    })
 }
 
 enum SplitBy {
@@ -475,10 +492,11 @@ async fn get_website_by_alias(
         data: last_24_hours_data,
     };
 
-    Ok(SingleWebsiteLog {
+    Ok(SingleWebsiteLogTemplate {
         log,
         incidents,
         monthly_data,
+        logged_in: false,
     })
 }
 
