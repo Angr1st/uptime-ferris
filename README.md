@@ -13,6 +13,10 @@ A simple uptime monitor written in rust started from the [uptime monitor example
   [x] How to run a task in tokio that call ourself using reqwest
   [x] Frontend
 [ ] V0.2:
+  [ ] Frontend redesign:
+    [x] Themes and switcher
+    [x] Websites
+    [ ] Single Website
   [ ] Usermangement
   [ ] Login
   [ ] Ownership
