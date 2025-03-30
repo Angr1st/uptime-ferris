@@ -663,3 +663,14 @@ async fn shutdown_signal() {
         _ = terminate => {},
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn fill_data_gaps_returns_expected_amount_of_segments() {
+        let result = fill_data_gaps(vec![], 24, SplitBy::Hour, 3600);
+        assert_eq!(result.len(), 24);
+    }
+}
