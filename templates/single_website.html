@@ -1,70 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Shuttle Status Monitor</h1>
-<a href="/">Back to main page</a>
-<div class="website">
-    <h2 class="website-name">{{log.alias}} - {{log.url}}</h2>
-    <div>
-        Last 24 hours: {% for timestamp in log.data %} {% match
-        timestamp.uptime_pct %} {% when Some with (100) %}
-        <div class="tooltip">
-            🟢
-            <span class="tooltiptext"
-                >{{timestamp.time}} Uptime:
-                {{timestamp.uptime_pct.unwrap()}}%</span
-            >
-        </div>
-        {% when None %}
-        <div class="tooltip">
-            ⚪
-            <span class="tooltiptext">{{timestamp.time}} No data here :(</span>
-        </div>
-        {% else %}
-        <div class="tooltip">
-            🔴
+<div class="website mt-2 card bg-base-100 w-auto shadow-sm">
+    <div class="card-body">
+        <h2 class="website-name card-title">{{log.alias}}</h2>
+            <h3>{{log.url}}</h3>
+            <div>
+                Last 24 hours: {% for timestamp in log.data %} {% match
+                timestamp.uptime_pct %} {% when Some with (100) %}
+                <div class="tooltip">
+                    <div class="tooltip-content">
+                        {{timestamp.time}} Uptime:
+                        {{timestamp.uptime_pct.unwrap()}}%
+                    </div>
+                    <div class="status status-success status-xl"></div>
+                </div>
+                {% when None %}
+                <div class="tooltip">
+                    <div class="tooltip-content">
+                        {{timestamp.time}} No data available
+                    </div>
+                    <div class="status status-xl"></div>
+                </div>
+                {% else %}
+                <div class="tooltip">
+                    <div class="tooltip-content">
+                        {{timestamp.time}} Uptime:
+                        {{timestamp.uptime_pct.unwrap()}}%
+                    </div>
+                    <div class="inline-grid *:[grid-area:1/1]">
+                    <div class="status status-error status-xl animate-ping"></div>
+                    <div class="status status-error status-xl"></div>
+                    </div>
+                </div>
 
-            <span class="tooltiptext"
-                >{{timestamp.time}} Uptime:
-                {{timestamp.uptime_pct.unwrap()}}%</span
-            >
-        </div>
+                {% endmatch %} {% endfor %}
+            </div>
+        <div>
+            Last 30 days: {% for timestamp in monthly_data %} {% match
+            timestamp.uptime_pct %} {% when Some with (100) %}
+            <div class="tooltip">
+                <div class="tooltip-content">
+                    {{timestamp.time}} Uptime:
+                    {{timestamp.uptime_pct.unwrap()}}%
+                </div>
+                <div class="status status-success status-xl"></div>
+            </div>
+            {% when None %}
+            <div class="tooltip">
+                <div class="tooltip-content">
+                    {{timestamp.time}} No data available
+                </div>
+                <div class="status status-xl"></div>
+            </div>
+            {% else %}
+            <div class="tooltip">
+                <div class="tooltip-content">
+                    {{timestamp.time}} Uptime:
+                    {{timestamp.uptime_pct.unwrap()}}%
+                </div>
+                <div class="inline-grid *:[grid-area:1/1]">
+                <div class="status status-error status-xl animate-ping"></div>
+                <div class="status status-error status-xl"></div>
+                </div>
+            </div>
 
-        {% endmatch %} {% endfor %}
-    </div>
-    <div>
-        Last 30 days: {% for timestamp in monthly_data %} {% match
-        timestamp.uptime_pct %} {% when Some with (100) %}
-        <div class="tooltip">
-            🟢
-            <span class="tooltiptext"
-                >{{timestamp.time}} Uptime:
-                {{timestamp.uptime_pct.unwrap()}}%</span
-            >
+            {% endmatch %} {% endfor %}
         </div>
-        {% when None %}
-        <div class="tooltip">
-            ⚪
-            <span class="tooltiptext">{{timestamp.time}} No data here :(</span>
-        </div>
-        {% else %}
-        <div class="tooltip">
-            🔴
-
-            <span class="tooltiptext"
-                >{{timestamp.time}} Uptime:
-                {{timestamp.uptime_pct.unwrap()}}%</span
-            >
-        </div>
-
-        {% endmatch %} {% endfor %}
     </div>
 </div>
 
-<div class="incident-list">
-    <h2>Incidents</h2>
-    {% if incidents.len() > 0 %} {% for incident in incidents %}
-    <div class="incident">{{incident.time}} - {{incident.status}}</div>
-    {% endfor %} {% else %} No incidents reported. {% endif %}
+<div class="incident-list card mt-2 w-auto bg-base-100 shadow-sm">
+    <div class="card-body">
+        <h2 class="card-title">Incidents</h2>
+        {% if incidents.len() > 0 %}
+            {% for incident in incidents %}
+            <div class="incident">{{incident.time}} - {{incident.status}}</div>
+            {% endfor %}
+        {% else %}
+            <div class="flex-col justify-center">
+                <p>No incidents reported.</p>
+                <div class="status status-xl status-success center">
+            </div>
+        {% endif %}
+        </div>
+    </div>
 </div>
+<a href="/" class="btn btn-outline">Back</a>
 {% endblock %}
