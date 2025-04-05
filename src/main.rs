@@ -211,6 +211,7 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/", get(get_websites))
+        .route("/health", get(health_check))
         .route("/websites", post(create_website))
         .route(
             "/websites/:alias",
@@ -243,6 +244,14 @@ async fn main() {
         .with_graceful_shutdown(shutdown_signal())
         .await
         .unwrap();
+}
+
+async fn health_check() -> impl AxumIntoResponse {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header("Content-Type", "text/plain")
+        .body("healthy".to_owned())
+        .unwrap()
 }
 
 macro_rules! included_text_content_handler {
@@ -601,6 +610,7 @@ async fn check_websites_postgres(db: PgPool) {
     loop {
         interval.tick().await;
 
+        info!("Starting Website Uptime check");
         let client = reqwest::Client::new();
 
         let mut res = sqlx::query_as::<_, Website>(SELECT_URL_ALIAS_WEBSITES_QUERY).fetch(&db);
@@ -628,6 +638,7 @@ async fn check_websites_postgres(db: PgPool) {
                 error!("Error inserting log into db: {error}");
             }
         }
+        info!("Finished Website Uptime check");
     }
 }
 
