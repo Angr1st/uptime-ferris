@@ -433,10 +433,14 @@ fn fill_data_gaps(
     format: SplitBy,
     number_of_seconds: i32,
 ) -> Vec<WebsiteStats> {
+    let bound = match format {
+        SplitBy::Hour => 24,
+        SplitBy::Day => 30,
+    };
     // If the length of data is not as long as the number of required splits (24)
     // then we fill in the gaps
     if (data.len() as i32) < splits {
-        for i in 0..24 {
+        for i in 0..bound {
             let time = Utc::now() - chrono::Duration::seconds((number_of_seconds * i).into());
             let time = time
                 .with_minute(0)
@@ -660,6 +664,7 @@ async fn check_websites_sqlite(db: SqlitePool) {
                 error!("Error inserting log into db: {error}");
             }
         }
+        info!("Finished Website Uptime check");
     }
 }
 
@@ -695,6 +700,12 @@ mod test {
     fn fill_data_gaps_returns_expected_amount_of_segments_24_hours_3600() {
         let result = fill_data_gaps(vec![], 24, SplitBy::Hour, 3600);
         assert_eq!(result.len(), 24);
+    }
+
+    #[test]
+    fn fill_data_gaps_returns_expected_amount_of_segments_30_hours_86400() {
+        let result = fill_data_gaps(vec![], 24, SplitBy::Day, 86400);
+        assert_eq!(result.len(), 30);
     }
 
     #[test]
