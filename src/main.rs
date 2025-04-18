@@ -57,7 +57,7 @@ struct WebsiteLogs {
 }
 
 #[derive(Serialize, Template)]
-#[template(path = "index.html")]
+#[template(path = "websites.html")]
 struct WebsiteLogsTemplate {
     logged_in: bool,
     logs: Vec<WebsiteInfo>,
@@ -210,8 +210,8 @@ async fn main() {
 
     // build our application with a route
     let app = Router::new()
-        .route("/", get(get_websites))
         .route("/health", get(health_check))
+        .route("/websites", get(get_websites))
         .route("/websites", post(create_website))
         .route(
             "/websites/:alias",
