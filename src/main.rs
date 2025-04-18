@@ -1,4 +1,8 @@
 use crate::shared_queries::*;
+use argon2::{
+    Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+};
 use argument_parsing::Args;
 use askama::Template;
 use askama_axum::IntoResponse as AskamaIntoResponse;
@@ -6,7 +10,7 @@ use axum::{
     Form, Router,
     body::{Body, Bytes},
     extract::{Path, State},
-    response::{IntoResponse as AxumIntoResponse, Response},
+    response::{IntoResponse as AxumIntoResponse, Redirect, Response},
     routing::{get, post},
 };
 use chrono::{DateTime, Timelike, Utc};
@@ -29,6 +33,25 @@ mod postgres_queries;
 mod shared_queries;
 mod sqlite;
 mod sqlite_queries;
+
+#[derive(Serialize, Template)]
+#[template(path = "registration.html")]
+struct RegistrationTemplate {
+    logged_in: bool,
+}
+
+#[derive(Deserialize)]
+struct RegistrationInput {
+    username: String,
+    password: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct User {
+    username: String,
+    password_hash: String,
+    salt: String,
+}
 
 #[derive(Deserialize, sqlx::FromRow, Validate)]
 struct Website {
@@ -146,6 +169,7 @@ impl AppState {
 enum ApiError {
     SQL(sqlx::Error),
     Validation(String),
+    PasswordHashing(argon2::password_hash::Error),
 }
 
 impl From<sqlx::Error> for ApiError {
@@ -160,6 +184,12 @@ impl From<String> for ApiError {
     }
 }
 
+impl From<argon2::password_hash::Error> for ApiError {
+    fn from(value: argon2::password_hash::Error) -> Self {
+        Self::PasswordHashing(value)
+    }
+}
+
 impl AxumIntoResponse for ApiError {
     fn into_response(self) -> Response {
         match self {
@@ -170,6 +200,10 @@ impl AxumIntoResponse for ApiError {
             Self::Validation(s) => AxumIntoResponse::into_response((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Validation Error: {s}"),
+            )),
+            Self::PasswordHashing(a) => AxumIntoResponse::into_response((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Password Hashing Error: {a}"),
             )),
         }
     }
@@ -211,6 +245,8 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/health", get(health_check))
+        .route("/registration", get(get_registration))
+        .route("/registrate", post(register_user))
         .route("/websites", get(get_websites))
         .route("/websites", post(create_website))
         .route(
@@ -369,6 +405,68 @@ async fn get_website_logs(state: AppState) -> Result<Vec<WebsiteInfo>, ApiError>
     }
 
     Ok(logs)
+}
+
+async fn get_registration() -> impl AskamaIntoResponse {
+    RegistrationTemplate { logged_in: false }
+}
+
+async fn register_user(
+    State(state): State<AppState>,
+    Form(registration_input): Form<RegistrationInput>,
+) -> Result<impl AxumIntoResponse, ApiError> {
+    let hashed_password = hash_password(&registration_input.password)?;
+    let user = User {
+        username: registration_input.username,
+        password_hash: hashed_password.hash,
+        salt: hashed_password.salt,
+    };
+
+    match state {
+        AppState::Postgres(pool) => {
+            let _ =
+                sqlx::query("INSERT INTO Users (username, password_hash, salt) VALUES ($1,$2,$3)")
+                    .bind(user.username)
+                    .bind(user.password_hash)
+                    .bind(user.salt)
+                    .execute(&pool)
+                    .await?;
+        }
+        AppState::Sqlite(pool) => {
+            let _ =
+                sqlx::query("INSERT INTO Users (username, password_hash, salt) VALUES ($1,$2,$3)")
+                    .bind(user.username)
+                    .bind(user.password_hash)
+                    .bind(user.salt)
+                    .execute(&pool)
+                    .await?;
+        }
+    };
+
+    Ok(Redirect::to("/websites"))
+}
+
+struct HashedPassword {
+    hash: String,
+    salt: String,
+}
+
+fn hash_password(password: &str) -> Result<HashedPassword, argon2::password_hash::Error> {
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = Argon2::default();
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)?;
+
+    Ok(HashedPassword {
+        hash: password_hash.to_string(),
+        salt: salt.to_string(),
+    })
+}
+
+fn verify_password(user: &User, password: &str) -> Result<bool, argon2::password_hash::Error> {
+    let parsed_hash = PasswordHash::new(&user.password_hash)?;
+    let result = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
+
+    Ok(result.is_ok())
 }
 
 #[axum::debug_handler]

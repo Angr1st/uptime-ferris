@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="/register" method="post">
+    <fieldset class="fieldset w-xs bg-base-300 border border-base-300 p-4 rounded-box">
+        <legend class="fieldset-legend">Register as new User</legend>
+
+        <legend class="fieldset-legend">Username</legend>
+        <input type="text" name="username" placeholder="username" required class="input"/>
+        
+        <legend class="fieldset-legend">Password</legend>
+        <input type="password" name="password" placeholder="Password" required class="input"/>
+    <button class="btn btn-success mt-4" type="submit">Submit</button>
+    </fieldset>
+</form>
+{% endblock %}
