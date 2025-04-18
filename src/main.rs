@@ -323,6 +323,7 @@ async fn create_website(
             let _ = sqlx::query(INSERT_INTO_WEBSITES_QUERY)
                 .bind(new_website.url)
                 .bind(new_website.alias)
+                .bind(Utc::now())
                 .execute(p)
                 .await?;
         }
@@ -624,6 +625,7 @@ async fn check_websites_postgres(db: PgPool) {
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
                     .bind(website.alias)
                     .bind(response.status().as_u16() as i16)
+                    .bind("")
                     .execute(&db)
                     .await
             } else {
@@ -631,6 +633,7 @@ async fn check_websites_postgres(db: PgPool) {
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
                     .bind(website.alias)
                     .bind(-1 as i16)
+                    .bind("Website unreachable or Server has not internet access!")
                     .execute(&db)
                     .await
             };
@@ -661,6 +664,7 @@ async fn check_websites_sqlite(db: SqlitePool) {
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
                     .bind(website.alias)
                     .bind(response.status().as_u16() as i16)
+                    .bind("")
                     .execute(&db)
                     .await
             } else {
@@ -668,6 +672,7 @@ async fn check_websites_sqlite(db: SqlitePool) {
                 sqlx::query(INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY)
                     .bind(website.alias)
                     .bind(-1 as i16)
+                    .bind("Website unreachable or Server has no internet access!")
                     .execute(&db)
                     .await
             };

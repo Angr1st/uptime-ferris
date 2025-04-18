@@ -15,6 +15,6 @@ pub const DELETE_LOGS_BY_WEBSITE_ALIAS_QUERY: &str = "DELETE FROM Logs WHERE id 
         LEFT JOIN Websites ON Websites.id = Logs.website_id
         WHERE Websites.alias = $1)";
 pub const DELETE_WEBSITE_BY_ALIAS_QUERY: &str = "DELETE FROM Websites WHERE alias = $1";
-pub const INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY: &str = r#"INSERT INTO Logs (website_id, status)
+pub const INSERT_INTO_LOGS_BY_ALIAS_RESPONSE_CODE_QUERY: &str = r#"INSERT INTO Logs (website_id, status, error_msg)
                 VALUES
-                ((SELECT id FROM Websites WHERE alias = $1), $2)"#;
+                ((SELECT id FROM Websites WHERE alias = $1), $2, $3)"#;

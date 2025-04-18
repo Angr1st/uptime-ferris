@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS Logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     website_id INTEGER NOT NULL REFERENCES Websites(id),
     status INTEGER,
+    error_msg TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:00', 'now')),
     UNIQUE (website_id, created_at)
 );
