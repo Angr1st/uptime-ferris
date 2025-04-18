@@ -217,7 +217,6 @@ async fn main() {
             "/websites/:alias",
             get(get_website_by_alias).delete(delete_website),
         )
-        .route("/styles.css", get(styles))
         .route("/assets/logo.svg", get(logo))
         .route("/assets/favicon-96x96.png", get(favicon_96_png))
         .route("/assets/favicon.svg", get(favicon_svg))
@@ -266,7 +265,6 @@ macro_rules! included_text_content_handler {
     };
 }
 
-included_text_content_handler!(styles, "text/css", "../templates/styles.css");
 included_text_content_handler!(
     site_webmanifest,
     "application/webmanifest+json",
