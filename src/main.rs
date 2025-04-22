@@ -246,7 +246,7 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/registration", get(get_registration))
-        .route("/registrate", post(register_user))
+        .route("/register", post(register_user))
         .route("/websites", get(get_websites))
         .route("/websites", post(create_website))
         .route(
