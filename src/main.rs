@@ -829,4 +829,20 @@ mod test {
         let result = fill_data_gaps(vec![websitestat], 1, SplitBy::Hour, 3600);
         assert_eq!(result.len(), 1);
     }
+
+    #[test]
+    fn password_hashing_and_validation() {
+        let password = "Test123";
+        let hash_result = hash_password(&password);
+        assert!(hash_result.is_ok(), "Password should be able to be hashed");
+
+        let hash = hash_result.unwrap();
+        let user = User {
+            username: String::new(),
+            password_hash: hash.hash,
+            salt: hash.salt,
+        };
+        let validation_result = verify_password(&user, &password);
+        assert!(validation_result.is_ok(), "Password should match");
+    }
 }
