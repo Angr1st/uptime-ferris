@@ -1,4 +1,8 @@
 use crate::shared_queries::*;
+use argon2::{
+    Argon2,
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString, rand_core::OsRng},
+};
 use argument_parsing::Args;
 use askama::Template;
 use askama_axum::IntoResponse as AskamaIntoResponse;
@@ -166,6 +170,7 @@ impl AppState {
 enum ApiError {
     SQL(sqlx::Error),
     Validation(String),
+    PasswordHashing(argon2::password_hash::Error),
     JsonWebTokenError(jsonwebtoken::errors::Error),
 }
 
@@ -178,6 +183,12 @@ impl From<sqlx::Error> for ApiError {
 impl From<String> for ApiError {
     fn from(value: String) -> Self {
         Self::Validation(value)
+    }
+}
+
+impl From<argon2::password_hash::Error> for ApiError {
+    fn from(value: argon2::password_hash::Error) -> Self {
+        Self::PasswordHashing(value)
     }
 }
 
@@ -198,9 +209,13 @@ impl AxumIntoResponse for ApiError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Validation Error: {s}"),
             )),
-            Self::JsonWebTokenError(a) => AxumIntoResponse::into_response((
+            Self::PasswordHashing(a) => AxumIntoResponse::into_response((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Password Hashing Error: {a}"),
+            )),
+            Self::JsonWebTokenError(a) => AxumIntoResponse::into_response((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Json Web Token Error: {a}"),
             )),
         }
     }
@@ -825,5 +840,21 @@ mod test {
         };
         let result = fill_data_gaps(vec![websitestat], 1, SplitBy::Hour, 3600);
         assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn password_hashing_and_validation() {
+        let password = "Test1234!";
+        let hash_result = hash_password(&password);
+        assert!(hash_result.is_ok(), "Password hashing should succeed");
+
+        let hash = hash_result.unwrap();
+        let user = User {
+            username: String::new(),
+            password_hash: hash.hash,
+            salt: hash.salt,
+        };
+        let validation_result = verify_password(&user, &password);
+        assert!(validation_result.is_ok(), "Password should match");
     }
 }
