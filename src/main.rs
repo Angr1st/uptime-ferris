@@ -39,6 +39,7 @@ mod sqlite_queries;
 #[template(path = "registration.html")]
 struct RegistrationTemplate {
     logged_in: bool,
+    error_message: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -51,6 +52,7 @@ struct RegistrationInput {
 #[template(path = "login.html")]
 struct LoginTemplate {
     logged_in: bool,
+    error_message: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -179,11 +181,17 @@ impl AppState {
     }
 }
 
+enum UserActionErrorType {
+    RegistrationFailed,
+    LoginFailed,
+}
+
 enum ApiError {
     SQL(sqlx::Error),
     Validation(String),
     PasswordHashing(argon2::password_hash::Error),
     JsonWebTokenError(jsonwebtoken::errors::Error),
+    Unauthorized(UserActionErrorType),
 }
 
 impl From<sqlx::Error> for ApiError {
@@ -210,6 +218,12 @@ impl From<jsonwebtoken::errors::Error> for ApiError {
     }
 }
 
+impl From<UserActionErrorType> for ApiError {
+    fn from(value: UserActionErrorType) -> Self {
+        Self::Unauthorized(value)
+    }
+}
+
 impl AxumIntoResponse for ApiError {
     fn into_response(self) -> Response {
         match self {
@@ -229,6 +243,18 @@ impl AxumIntoResponse for ApiError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Json Web Token Error: {a}"),
             )),
+            Self::Unauthorized(a) => match a {
+                UserActionErrorType::RegistrationFailed => RegistrationTemplate {
+                    logged_in: false,
+                    error_message: Some("Registration failed!".into()),
+                }
+                .into_response(),
+                UserActionErrorType::LoginFailed => LoginTemplate {
+                    logged_in: false,
+                    error_message: Some("Invalid email or password!".into()),
+                }
+                .into_response(),
+            },
         }
     }
 }
@@ -439,7 +465,10 @@ async fn get_website_logs(state: AppState) -> Result<Vec<WebsiteInfo>, ApiError>
 }
 
 async fn get_registration() -> impl AskamaIntoResponse {
-    RegistrationTemplate { logged_in: false }
+    RegistrationTemplate {
+        logged_in: false,
+        error_message: None,
+    }
 }
 
 async fn register_user(
@@ -501,14 +530,49 @@ fn verify_password(user: &User, password: &str) -> Result<bool, argon2::password
 }
 
 async fn get_login() -> impl AskamaIntoResponse {
-    LoginTemplate { logged_in: false }
+    LoginTemplate {
+        logged_in: false,
+        error_message: None,
+    }
 }
 
 async fn login_user(
     State(state): State<AppState>,
     Form(login_input): Form<LoginInput>,
 ) -> Result<impl AxumIntoResponse, ApiError> {
-    Ok(Redirect::to("/websites"))
+    if login_input.username.is_empty() {
+        return Err(String::from("You need to provide a username!").into());
+    }
+    let user_result = match state {
+        AppState::Postgres(pool) => {
+            sqlx::query_as::<_, User>(
+                "SELECT username, password_hash, salt FROM Users WHERE username = $1",
+            )
+            .bind(login_input.username)
+            .fetch_all(&pool)
+            .await?
+        }
+        AppState::Sqlite(pool) => {
+            sqlx::query_as::<_, User>(
+                "SELECT username, password_hash, salt FROM Users WHERE username = $1",
+            )
+            .bind(login_input.username)
+            .fetch_all(&pool)
+            .await?
+        }
+    };
+
+    if user_result.is_empty() {
+        return Err(UserActionErrorType::LoginFailed.into());
+    }
+
+    if let Some(user) = user_result.first() {
+        if verify_password(user, &login_input.password)? {
+            return Ok(Redirect::to("/websotes"));
+        }
+    }
+
+    Err(UserActionErrorType::LoginFailed.into())
 }
 
 #[axum::debug_handler]
