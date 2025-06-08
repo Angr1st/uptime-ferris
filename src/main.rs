@@ -47,6 +47,18 @@ struct RegistrationInput {
     password: String,
 }
 
+#[derive(Serialize, Template)]
+#[template(path = "login.html")]
+struct LoginTemplate {
+    logged_in: bool,
+}
+
+#[derive(Deserialize)]
+struct LoginInput {
+    username: String,
+    password: String,
+}
+
 #[derive(sqlx::FromRow)]
 struct User {
     username: String,
@@ -260,6 +272,8 @@ async fn main() {
         .route("/", get(get_bare_slash))
         .route("/registration", get(get_registration))
         .route("/register", post(register_user))
+        .route("/login", get(get_login))
+        .route("/login", post(login_user))
         .route("/websites", get(get_websites))
         .route("/websites", post(create_website))
         .route(
@@ -484,6 +498,17 @@ fn verify_password(user: &User, password: &str) -> Result<bool, argon2::password
     let result = Argon2::default().verify_password(password.as_bytes(), &parsed_hash);
 
     Ok(result.is_ok())
+}
+
+async fn get_login() -> impl AskamaIntoResponse {
+    LoginTemplate { logged_in: false }
+}
+
+async fn login_user(
+    State(state): State<AppState>,
+    Form(login_input): Form<LoginInput>,
+) -> Result<impl AxumIntoResponse, ApiError> {
+    Ok(Redirect::to("/websites"))
 }
 
 #[axum::debug_handler]
