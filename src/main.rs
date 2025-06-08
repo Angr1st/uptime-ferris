@@ -257,6 +257,7 @@ async fn main() {
     // build our application with a route
     let app = Router::new()
         .route("/health", get(health_check))
+        .route("/", get(get_bare_slash))
         .route("/registration", get(get_registration))
         .route("/register", post(register_user))
         .route("/websites", get(get_websites))
@@ -299,6 +300,10 @@ async fn health_check() -> impl AxumIntoResponse {
         .header("Content-Type", "text/plain")
         .body("healthy".to_owned())
         .unwrap()
+}
+
+async fn get_bare_slash() -> impl AxumIntoResponse {
+    Redirect::to("/websites")
 }
 
 macro_rules! included_text_content_handler {
