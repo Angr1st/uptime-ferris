@@ -4,13 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-argon2 = "0.5.3"
 askama = { version = "0.12.1", features = ["with-axum"] }
 askama_axum = "0.4.0"
 axum = { version = "0.7.9", features = ["macros"] }
 chrono = { version = "0.4.40", features = ["clock", "serde"] }
 clap = { version = "4.5.31", features = ["derive", "env"] }
 futures-util = "0.3.31"
+jsonwebtoken = "9.3.1"
 reqwest = "0.12.14"
 serde = { version = "1.0.218", features = ["derive"] }
 sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono"] }
