@@ -16,7 +16,6 @@ use axum::{
 use chrono::{DateTime, Timelike, Utc};
 use clap::Parser;
 use futures_util::StreamExt;
-use jsonwebtoken::errors::Error;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, SqlitePool, migrate::Migrator};
@@ -475,6 +474,11 @@ async fn register_user(
     State(state): State<AppState>,
     Form(registration_input): Form<RegistrationInput>,
 ) -> Result<impl AxumIntoResponse, ApiError> {
+    if registration_input.username.is_empty() || registration_input.password.is_empty() {
+        return Err(ApiError::Unauthorized(
+            UserActionErrorType::RegistrationFailed,
+        ));
+    }
     let hashed_password = hash_password(&registration_input.password)?;
     let user = User {
         username: registration_input.username,
