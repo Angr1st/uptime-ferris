@@ -5,18 +5,18 @@ edition = "2024"
 
 [dependencies]
 argon2 = "0.5.3"
-askama = { version = "0.12.1", features = ["with-axum"] }
-askama_axum = "0.4.0"
-axum = { version = "0.7.9", features = ["macros"] }
-chrono = { version = "0.4.40", features = ["clock", "serde"] }
-clap = { version = "4.5.31", features = ["derive", "env"] }
-futures-util = "0.3.31"
-jsonwebtoken = "9.3.1"
-reqwest = "0.12.14"
-serde = { version = "1.0.218", features = ["derive"] }
-sqlx = { version = "0.8.3", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono"] }
-tokio = { version = "1.44.0", features = ["full"] }
-tower-http = { version = "0.6.2", features = ["trace", "tracing"] }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+askama = { version = "0.15.4", features = [] }
+askama_web = { version = "0.15.1", features = ["axum-0.8"] }
+axum = { version = "0.8.8", features = ["macros"] }
+chrono = { version = "0.4.44", features = ["clock", "serde"] }
+clap = { version = "4.5.60", features = ["derive", "env"] }
+futures-util = "0.3.32"
+jsonwebtoken = "10.3.0"
+reqwest = "0.13.2"
+serde = { version = "1.0.228", features = ["derive"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "sqlite", "macros", "chrono"] }
+tokio = { version = "1.50.0", features = ["full"] }
+tower-http = { version = "0.6.8", features = ["trace", "tracing"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 validator = { version = "0.20.0", features = ["derive"] }

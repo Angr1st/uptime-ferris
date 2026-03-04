@@ -5,7 +5,6 @@ use argon2::{
 };
 use argument_parsing::Args;
 use askama::Template;
-use askama_axum::IntoResponse as AskamaIntoResponse;
 use axum::{
     Form, Router,
     body::{Body, Bytes},
@@ -403,7 +402,7 @@ included_binary_content_handler!(
 async fn create_website(
     State(state): State<AppState>,
     Form(new_website): Form<Website>,
-) -> Result<impl AskamaIntoResponse, ApiError> {
+) -> Result<impl AxumIntoResponse, ApiError> {
     if new_website.validate().is_err() {
         return Err(String::from("Validation Error: is your website a reachable URL?").into());
     }
