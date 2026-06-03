@@ -5,6 +5,7 @@ use argon2::{
 };
 use argument_parsing::Args;
 use askama::Template;
+use askama_web::WebTemplate;
 use axum::{
     Form, Router,
     body::{Body, Bytes},
@@ -33,7 +34,7 @@ mod shared_queries;
 mod sqlite;
 mod sqlite_queries;
 
-#[derive(Serialize, Template)]
+#[derive(Serialize, Template, WebTemplate)]
 #[template(path = "registration.html")]
 struct RegistrationTemplate {
     logged_in: bool,
@@ -46,7 +47,7 @@ struct RegistrationInput {
     password: String,
 }
 
-#[derive(Serialize, Template)]
+#[derive(Serialize, Template, WebTemplate)]
 #[template(path = "login.html")]
 struct LoginTemplate {
     logged_in: bool,
@@ -92,14 +93,14 @@ struct WebsiteLogs {
     logs: Vec<WebsiteInfo>,
 }
 
-#[derive(Serialize, Template)]
+#[derive(Serialize, Template, WebTemplate)]
 #[template(path = "websites.html")]
 struct WebsiteLogsTemplate {
     logged_in: bool,
     logs: Vec<WebsiteInfo>,
 }
 
-#[derive(Serialize, Template)]
+#[derive(Serialize, Template, WebTemplate)]
 #[template(path = "websites-fragment.html")]
 struct WebsiteLogsFragmentTemplate {
     logged_in: bool,
@@ -113,7 +114,7 @@ struct SingleWebsiteLog {
     monthly_data: Vec<WebsiteStats>,
 }
 
-#[derive(Serialize, Template)]
+#[derive(Serialize, Template, WebTemplate)]
 #[template(path = "single_website.html")]
 struct SingleWebsiteLogTemplate {
     logged_in: bool,
@@ -462,7 +463,7 @@ async fn get_website_logs(state: AppState) -> Result<Vec<WebsiteInfo>, ApiError>
     Ok(logs)
 }
 
-async fn get_registration() -> impl AskamaIntoResponse {
+async fn get_registration() -> RegistrationTemplate {
     RegistrationTemplate {
         logged_in: false,
         error_message: None,
@@ -532,7 +533,7 @@ fn verify_password(user: &User, password: &str) -> Result<bool, argon2::password
     Ok(result.is_ok())
 }
 
-async fn get_login() -> impl AskamaIntoResponse {
+async fn get_login() -> LoginTemplate {
     LoginTemplate {
         logged_in: false,
         error_message: None,
@@ -579,7 +580,7 @@ async fn login_user(
 }
 
 #[axum::debug_handler]
-async fn get_websites(State(state): State<AppState>) -> Result<impl AskamaIntoResponse, ApiError> {
+async fn get_websites(State(state): State<AppState>) -> Result<WebsiteLogsTemplate, ApiError> {
     let logs = get_website_logs(state).await?;
     Ok(WebsiteLogsTemplate {
         logs,
@@ -690,7 +691,7 @@ fn fill_data_gaps(
 async fn get_website_by_alias(
     State(state): State<AppState>,
     Path(alias): Path<String>,
-) -> Result<impl AskamaIntoResponse, ApiError> {
+) -> Result<SingleWebsiteLogTemplate, ApiError> {
     info!("retrieving website entry for alias");
     let website = match state {
         AppState::Postgres(ref p) => {
