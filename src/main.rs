@@ -322,6 +322,9 @@ async fn main() {
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);
 
+    // Add 404 Fallback
+    let app = app.fallback(handler_404);
+
     // run it
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
@@ -343,6 +346,10 @@ async fn health_check() -> impl AxumIntoResponse {
 
 async fn get_bare_slash() -> impl AxumIntoResponse {
     Redirect::to("/websites")
+}
+
+async fn handler_404() -> impl AxumIntoResponse {
+    (StatusCode::NOT_FOUND, "Nothing to see here")
 }
 
 macro_rules! included_text_content_handler {
