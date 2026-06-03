@@ -302,7 +302,7 @@ async fn main() {
         .route("/websites", get(get_websites))
         .route("/websites", post(create_website))
         .route(
-            "/websites/:alias",
+            "/websites/{alias}",
             get(get_website_by_alias).delete(delete_website),
         )
         .route("/assets/logo.svg", get(logo))
