@@ -129,6 +129,12 @@ struct Incident {
     status: i16,
 }
 
+#[derive(Serialize, Template, WebTemplate)]
+#[template(path = "not_found.html")]
+struct NotFoundTemplate {
+    logged_in: bool,
+}
+
 #[derive(Clone, Debug)]
 enum AppState {
     Postgres(PgPool),
@@ -348,8 +354,8 @@ async fn get_bare_slash() -> impl AxumIntoResponse {
     Redirect::to("/websites")
 }
 
-async fn handler_404() -> impl AxumIntoResponse {
-    (StatusCode::NOT_FOUND, "Nothing to see here")
+async fn handler_404() -> NotFoundTemplate {
+    NotFoundTemplate { logged_in: false }
 }
 
 macro_rules! included_text_content_handler {
